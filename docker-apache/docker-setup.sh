@@ -21,8 +21,14 @@ firewall-cmd --reload
 echo "* Add vagrant user to docker group ..."
 usermod -aG docker vagrant
 
+echo "<h1>This is Milens container</h1>" >> /home/user/web/index.html
+
 docker build -t apache-centos - << EOF
 FROM    centos:7
+LABEL maintainer="Milen Palachorov"
+LABEL version="1.0"
+LABEL title="Softuni Student"
+
 RUN yum install httpd httpd-tools -y
 
 EXPOSE  80
@@ -33,7 +39,6 @@ EOF
 
 docker run -d -p 8090:80 -v /home/user/web:/var/www/html apache-centos
 
-echo "<h1>This is Milens container</h1>" >> /home/user/web/index.html
 
 cd /home/user/web/ || return
 
