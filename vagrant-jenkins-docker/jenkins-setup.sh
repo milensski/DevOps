@@ -21,38 +21,34 @@ sudo apt-get -y install jenkins
 
 sudo systemctl enable jenkins
 
-
-
-# Get the initial admin password
-PASSWORD=$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)
-
-# Unlock Jenkins with the initial admin password
-sudo echo "jenkins.model.Jenkins.instance.securityRealm.createAccount(\"admin\", \"$PASSWORD\")" | sudo java -jar /usr/share/jenkins/jenkins.war --webroot=/var/cache/jenkins/war --httpPort=8080 --ajp13Port=-1 --httpsPort=-1 --sessionTimeout=86400 --accessLoggerClassName=winstone.accesslog.SimpleAccessLogger --simpleAuth.hudson.model.SimpleUserDetailsService.user=admin
-
-# Restart Jenkins
+echo "* Restart Jenkins ..."
 sudo systemctl restart jenkins
 
+echo "* Add user jenkins ..."
 sudo usermod -s /bin/bash jenkins
-# Define the new password for the jenkins user
-NEW_PASSWORD="Password1"
 
-# Use the passwd command to encrypt the new password
-ENCRYPTED_PASSWORD=$(echo "$NEW_PASSWORD" | passwd --stdin jenkins)
+echo "* Define the new password for the jenkins user ..."
+echo -e "Password1\nPassword1" | passwd jenkins
 
-# Use the chpasswd command to update the password in the system password database
-echo "jenkins:$ENCRYPTED_PASSWORD" | chpasswd
-
-
-#Add jenkins user to sudoers list
+echo "* Add jenkins user to sudoers list ..."
 sudo bash -c "echo 'jenkins ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers"
 
+
+echo "* Make dir for jenkins and change owner ..."
 sudo mkdir -p /projects/www-static
 sudo chown -R jenkins:jenkins /projects
 
-#Generate an SSH key, accept all default values
+#Not neccessery for this homework but...
+echo "* Generate an SSH key, accept all default values ..."
 ssh-keygen -t ecdsa -b 521 -m PEM
 
-#Copy the key to the localhost
+echo "* Copy the key to the localhost ..."
 sshpass -p Password1 ssh-copy-id jenkins@localhost
 
+echo "* Restart Jenkins ..."
 sudo systemctl restart jenkins
+
+echo "* Restart Jenkins ..."
+
+PASSWORD=$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)
+echo "Jenkins initialPassword ---->  $PASSWORD"
