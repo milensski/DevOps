@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['192.168.99.101:9323']
+
+  - job_name: 'goprom'
+    static_configs:
+      - targets: ['192.168.99.101:8081', '192.168.99.101:8082']
