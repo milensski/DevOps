@@ -1,0 +1,57 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+    
+  config.ssh.insert_key = false
+
+  config.vm.define "pipelines" do |pipelines|
+    pipelines.vm.box="shekeriev/debian-11"
+    pipelines.vm.hostname = "vm101.do1.lab"
+    pipelines.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "3072"]
+      vb.customize ["modifyvm", :id, "--usb", "on"]
+      vb.customize ["modifyvm", :id, "--usbehci", "off"]
+    end
+    pipelines.vm.network "private_network", ip: "192.168.99.101"
+    pipelines.vm.network "forwarded_port", guest: 8080, host: 8080
+    pipelines.vm.provision "shell", path: "provision-scripts/add_hosts.sh"
+    pipelines.vm.provision "shell", path: "provision-scripts/install_jenkins.sh"
+    pipelines.vm.provision "shell", path: "provision-scripts/setup_jenkins.sh"
+    pipelines.vm.provision "shell", path: "provision-scripts/node_exporter.sh"
+    pipelines.vm.synced_folder "shared-files/", "/vagrant"
+  end
+
+  config.vm.define "docker" do |docker|
+    docker.vm.box = "shekeriev/debian-11"
+    docker.vm.hostname = "vm102.do1.lab"
+    docker.vm.provider :virtualbox do |vb|
+      vb.customize ["modifyvm", :id, "--memory", "3072"]
+      vb.customize ["modifyvm", :id, "--usb", "on"]
+      vb.customize ["modifyvm", :id, "--usbehci", "off"]
+    end
+    docker.vm.network "private_network", ip: "192.168.99.102"
+    docker.vm.network "forwarded_port", guest: 8080, host: 8081
+    docker.vm.provision "shell", path: "provision-scripts/add_hosts.sh"
+    docker.vm.provision "shell", path: "provision-scripts/install_docker.sh"
+    docker.vm.provision "shell", path: "provision-scripts/setup_gitea.sh"
+    docker.vm.provision "shell", path: "provision-scripts/node_exporter.sh"
+    docker.vm.synced_folder "shared-files/", "/vagrant"
+  end
+
+  config.vm.define "monitoring" do |monitoring|
+    monitoring.vm.box = "shekeriev/debian-11"
+    monitoring.vm.hostname = "vm103.do1.lab"
+    monitoring.vm.provider "virtualbox" do |vb|
+      vb.memory = "3072"
+    end
+    monitoring.vm.network "private_network", ip: "192.168.99.103"
+    monitoring.vm.network "forwarded_port", guest: 3000, host: 8082
+    monitoring.vm.provision "shell", path: "provision-scripts/install_docker_debian.sh"
+    monitoring.vm.provision "shell", path: "provision-scripts/containers.sh"
+    monitoring.vm.synced_folder "shared-files/", "/vagrant"
+  end
+
+  
+
+end

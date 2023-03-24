@@ -1,0 +1,100 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1284.v2fe8ed4573d4">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2121.vd87fb_6536d1e"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2121.vd87fb_6536d1e">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.37.0">
+      <projectUrl>http://192.168.99.102:3000/vagrant/exam/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers>
+        <com.cloudbees.jenkins.GitHubPushTrigger plugin="github@1.37.0">
+          <spec></spec>
+        </com.cloudbees.jenkins.GitHubPushTrigger>
+        <hudson.triggers.SCMTrigger>
+          <spec></spec>
+          <ignorePostCommitHooks>false</ignorePostCommitHooks>
+        </hudson.triggers.SCMTrigger>
+      </triggers>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@3641.vf58904a_b_b_5d8">
+    <script>pipeline
+{
+    agent
+    {
+        label &apos;docker-node&apos;
+    }
+    environment
+    {
+        DOCKERHUB_CREDENTIALS=credentials(&apos;docker-hub&apos;)
+    }
+    stages
+    {
+        stage(&apos;Clone&apos;)
+        {
+            steps
+            {
+                git branch: &apos;main&apos;, url: &apos;http://192.168.99.102:3000/vagrant/exam&apos;
+            }
+        }
+        stage(&apos;Build&apos;)
+        {
+            steps
+            {   sh &apos;docker network ls | grep app-net || docker network create app-net&apos;
+                sh &apos;cd /home/vagrant/workspace/Exam/consumer &amp;&amp; docker image build -t img-cons .&apos;
+                sh &apos;cd /home/vagrant/workspace/Exam/producer &amp;&amp; docker image build -t img-prod .&apos;
+                sh &apos;cd /home/vagrant/workspace/Exam/storage &amp;&amp; docker image build -t img-stor .&apos;
+
+            }
+        }
+        stage(&apos;Run&apos;)
+        {
+            steps
+            {
+                sh &apos;docker container rm -f dob-storage || true&apos;
+                sh &apos;docker container run -d --name dob-storage -e MYSQL_ROOT_PASSWORD=Exam-2021 --net app-net img-stor&apos;
+                sh &apos;docker container rm -f dob-producer || true&apos;
+                sh &apos;docker container run -d --name dob-producer --net app-net img-prod&apos;
+                sh &apos;docker container rm -f dob-consumer || true&apos;
+                sh &apos;docker container run -d --name dob-consumer -p 8080:5000 --net app-net img-cons&apos;
+            }
+        }
+        stage(&apos;Login&apos;)
+        {
+            steps
+            {
+                sh &apos;echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin&apos;
+            }
+        }
+        stage(&apos;Push&apos;)
+        {
+            steps
+            {
+                sh &apos;docker image tag img-cons $DOCKERHUB_CREDENTIALS_USR/dob-consumer&apos;
+                sh &apos;docker push $DOCKERHUB_CREDENTIALS_USR/dob-consumer&apos;
+                sh &apos;docker image tag img-prod $DOCKERHUB_CREDENTIALS_USR/dob-producer&apos;
+                sh &apos;docker push $DOCKERHUB_CREDENTIALS_USR/dob-producer&apos;
+                sh &apos;docker image tag img-stor $DOCKERHUB_CREDENTIALS_USR/dob-storage&apos;
+                sh &apos;docker push $DOCKERHUB_CREDENTIALS_USR/dob-storage&apos;
+            }
+        }
+
+    }
+}
+</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

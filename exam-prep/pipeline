@@ -1,0 +1,63 @@
+pipeline 
+{
+    agent 
+    {
+        label 'docker-node'
+    }
+    environment 
+    {
+        DOCKERHUB_CREDENTIALS=credentials('docker-hub')
+    }
+    stages 
+    {
+        stage('Clone') 
+        {
+            steps 
+            {
+                git branch: 'main', url: 'http://192.168.99.102:3000/vagrant/exam'
+            }
+        }
+        stage('Build')
+        {
+            steps
+            {   sh 'docker network ls | grep app-net || docker network create app-net'
+                sh 'cd /home/vagrant/workspace/Exam/consumer && docker image build -t img-cons .'
+                sh 'cd /home/vagrant/workspace/Exam/producer && docker image build -t img-prod .'
+                sh 'cd /home/vagrant/workspace/Exam/storage && docker image build -t img-stor .'
+
+            }
+        }
+        stage('Run')
+        {
+            steps
+            {
+                sh 'docker container rm -f dob-storage || true'
+                sh 'docker container run -d --name dob-storage -e MYSQL_ROOT_PASSWORD=Exam-2021 --net app-net img-stor'
+                sh 'docker container rm -f dob-producer || true'
+                sh 'docker container run -d --name dob-producer --net app-net img-prod'
+                sh 'docker container rm -f dob-consumer || true'
+                sh 'docker container run -d --name dob-consumer -p 8080:5000 --net app-net img-cons'
+            }
+        }
+        stage('Login') 
+        {
+            steps 
+            {
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+            }
+        }
+        stage('Push') 
+        {
+            steps 
+            {
+                sh 'docker image tag img-cons $DOCKERHUB_CREDENTIALS_USR/dob-consumer'
+                sh 'docker push $DOCKERHUB_CREDENTIALS_USR/dob-consumer'
+                sh 'docker image tag img-prod $DOCKERHUB_CREDENTIALS_USR/dob-producer'
+                sh 'docker push $DOCKERHUB_CREDENTIALS_USR/dob-producer'
+                sh 'docker image tag img-stor $DOCKERHUB_CREDENTIALS_USR/dob-storage'
+                sh 'docker push $DOCKERHUB_CREDENTIALS_USR/dob-storage'
+            }
+        }
+
+    }
+}
